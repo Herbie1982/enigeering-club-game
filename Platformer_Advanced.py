@@ -193,11 +193,7 @@ class Player(pygame.sprite.Sprite):
 
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
-
-    def switch_tag(self, tag):
-        if tag == "p1":
-            tag = "p"
-
+        
 class Player_1(pygame.sprite.Sprite):
     
     GRAVITY = 1
@@ -316,10 +312,6 @@ class Player_1(pygame.sprite.Sprite):
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
 
-    def switch_tag(self, tag):
-        if tag == "p":
-            tag = "p1"
-
 class Player_2(pygame.sprite.Sprite):
     
     GRAVITY = 1
@@ -433,11 +425,6 @@ class Player_2(pygame.sprite.Sprite):
 
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
-
-    def switch_tag(self, tag):
-        if tag == "p1":
-            tag = "p"
-
 
 class Object(pygame.sprite.Sprite):
     
