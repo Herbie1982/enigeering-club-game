@@ -3,6 +3,7 @@ import random
 import math
 import time
 import pygame
+import threading
 from os import listdir
 from os.path import isfile, join
 from threading import Timer
@@ -452,20 +453,49 @@ class Block(Object):
         self.mask = pygame.mask.from_surface(self.image)
 
 class Potion(Object):
-
+    EFFECT = None #the potion effect; None is the undetermined effect
+    EMPTY = False #whether the potion is empty or not
+    COOLDOWN = None #refill cooldown after the potion has been drunk
+    TIME = None #time that the effect given by this potion lasts
+    COSTUMES = ["../Potions/pixil-frame-0.png", "../Potions/pixil-frame-0 (1).png", "../Potions/pixil-frame-0 (2).png", "../Potions/pixil-frame-0 (3).png", "../Potions/pixil-frame-0 (4).png", "../Potions/pixil-frame-0 (5).png"] #a list of all the potion colours
+    CURRENT_COSTUME = None #current colour or empty bottle texture
+    EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #list of effects the potion can take on
+    x = 0 #x position
+    y = 0 #y position
+    
     def __init__():
-        self.EFFECT = None #the potion effect; None is the undetermined effect
-        self.EMPTY = False #whether the potion is empty or not
+        self.EFFECT = random.randint(0, 5)
 
     def clear_effect (effect, player):
         if effect != None:
-            player.POTION_EFFECTS[effect] = False
+            player.POTION_EFFECTS[effect] = False #removes the potion effect
 
     def give_effect (self, player, time):
         if self.EFFECT != None:
-            player.POTION_EFFECTS[self.EFFECT] = True
-            clear = Timer (time, self.clear_effect, (self.EFFECT, player))
+            player.POTION_EFFECTS[self.EFFECT] = True #gives the effect
+            clear = Timer (time, self.clear_effect, (self.EFFECT, player)) #removes it after the effect duration ends
             clear.start()
+
+    def refill():
+        self.EMPTY = False
+
+    def get_drunk(self, player): #this potion did NOT drink too much alcohol; I mean get_drunk as in someone drank it
+        print("Somebody drank a potion of ", self.EFFECT_LIST[self.EFFECT], "!")
+        self.EMPTY = True #well, somebody drank the potion so it must be empty right?
+        self.TIME = float(random.randint(15, 45)) + random.random()
+        self.give_effect(self.EFFECT, player, self.TIME) #this makes the potion a potion, or else it's... corrupted prime???
+        self.COOLDOWN = float(random.randint(30, 90)) + random.random()
+        refill = Timer(self.COOLDOWN, self.refill, ()) #refills the potion (potions are magical so this should make sense)
+
+    def update(self, players):
+        if self.EMPTY:
+            self.CURRENT_COSTUME = pygame.image.load("../Potions/pixil-frame-0 (6).png") #empty bottle
+        else:
+            self.CURRENT_COSTUME = pygame.image.load(self.COSTUMES[self.EFFECT]) #coloured according to effect
+            for p in players:
+                if pygame.sprite.collide_mask(self, players[p]):
+                    self.get_drunk(self, players[p])
+        self.image.blit(self.CURRENT_COSTUME, (self.x, self.y))
 
 class Fire(Object):
     ANIMATION_DELAY = 3
