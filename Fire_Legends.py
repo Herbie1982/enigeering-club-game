@@ -6,21 +6,30 @@ import pygame
 from os import listdir
 from os.path import isfile, join
 pygame.init()
+pygame.mixer.init()
 
-pygame.display.set_caption("Platformer Advanced")
+pygame.mixer.music.load("assets/Sounds/Background.wav")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)  # Loops forever
 
-START_VEL = 6
+pygame.display.set_caption("Fire Legends")
+
+START_VEL = 7.5
+FONT = pygame.font.SysFont("Arial", 18, bold=True)
 WIDTH, HEIGHT = 1200, 700
 FPS = 60
 PLAYER_VEL = START_VEL
 PLAYER_VEL_1 = START_VEL
 PLAYER_VEL_2 = START_VEL
 WHITE = (255, 255, 255)
+TIME_UNFORMATTED = int(input("How long do you want the game to last (in seconds)? (INPUT NOTE: Input just the number, i.e '60'.) "))
+TIME = TIME_UNFORMATTED * 1000  # Convert to milliseconds
 TAG_COUNT = 0
 TAG = input("Who starts as Tag? ")
 while TAG != "p" and TAG != "p1" and TAG != "p2":
     TAG = input("Invalid. Please state 'p', 'p1', or 'p2'. Who starts as Tag? ")
 last_switch_time = 0
+start_time = 0
 FIRE_COUNT = 0
 NO_OF_PLAYERS = int(input("How many players? "))
 while NO_OF_PLAYERS != 2 and NO_OF_PLAYERS != 3:
@@ -28,9 +37,14 @@ while NO_OF_PLAYERS != 2 and NO_OF_PLAYERS != 3:
 
 
 window = pygame.display.set_mode((WIDTH, HEIGHT))
+world_surface = pygame.Surface((WIDTH, HEIGHT))
+
 
 def flip(sprites):
     return[pygame.transform.flip(sprite, True, False) for sprite in sprites]
+
+def lerp(a, b, t):
+    return a + (b - a) * t
 
 def load_sprite_sheets(dir1, dir2, width, height, direction=False):
     path = join("assets", dir1, dir2)
@@ -67,21 +81,29 @@ def load_sprite_sheets_boss(dir1, dir2, width, height, direction=False):
 
         sprites = []
         for i in range(sprite_sheet.get_width() // width):
-            surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
-            rect = pygame.Rect(i * width, 0, width, height)
-            surface.blit(sprite_sheet, (0, 0), rect)
-            sprites.append(pygame.transform.scale2x(surface))
-            sprites.append(pygame.transform.scale2x(surface))
+            # Double the width and height
+            surface = pygame.Surface((width * 2, height * 2), pygame.SRCALPHA)
+            rect = pygame.Rect(i * width, 0, width * 2, height * 2)  # Keep original rect
+            
+            # Blit and scale up manually instead of using scale2x
+            temp_surface = pygame.Surface((width, height), pygame.SRCALPHA)
+            temp_surface.blit(sprite_sheet, (0, 0), rect)
+            enlarged_surface = pygame.transform.scale(temp_surface, (width * 2, height * 2))
+            
+            sprites.append(enlarged_surface)
 
         if direction:
             all_sprites[image.replace(".png", "") + "_right"] = sprites
-            all_sprites[image.replace(".png", "") + "_left"] = flip(sprites)
+            all_sprites[image.replace(".png", "") + "_left"] = [pygame.transform.flip(s, True, False) for s in sprites]
         else:
             all_sprites[image.replace(".png", "")] = sprites
 
     return all_sprites
 
-def  get_block(size):
+import pygame
+from os.path import join
+
+def get_block(size):
     path = join("assets", "Terrain", "Terrain.png")
     image = pygame.image.load(path).convert_alpha()
     surface = pygame.Surface((size, size), pygame.SRCALPHA, 32)
@@ -132,8 +154,11 @@ class BasePlayer(pygame.sprite.Sprite):
         self.jump_count = 0
         self.hit = False
         self.hit_count = 0
-        
+        self.boss_distance = 0
+        self.boss_height = 0
+        self.life_count = 3
         self.fire_count = 0
+        self.pushback = False
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 7.7
@@ -148,24 +173,13 @@ class BasePlayer(pygame.sprite.Sprite):
         self.rect.y += dy
 
     def make_hit(self):
-        global PLAYER_VEL
-        current_time = pygame.time.get_ticks()
-        fire_cooldown = 5000  # 5 seconds
-        PLAYER_VEL = 10  # Reset velocity
-
-        # If fire_count is None, set it to current time (first hit)
-        if self.fire_count == 0:
-            self.fire_count = current_time
-
-        print(f"Current Time: {current_time}, Fire Count: {self.fire_count}")
-
-        if current_time - self.fire_count > fire_cooldown:
-            PLAYER_VEL = 6
-            self.fire_count = current_time  # Reset cooldown
-            print("Cooldown over - Velocity reduced to 6!")
-        else:
-            print("Cooldown active - Velocity remains 10!")
-
+        self.hit = True
+    
+    def KO(self):
+        self.rect.x = 1000
+        self.rect.y = 1000
+        self.x_vel = 0
+        self.y_vel = 0
     
     def move_left(self, vel):
         self.x_vel = -vel
@@ -181,7 +195,7 @@ class BasePlayer(pygame.sprite.Sprite):
 
     def loop(self, fps):
 
-        self.y_vel += min(10, (self.fall_count / fps) * self.GRAVITY)
+        self.y_vel += min(1, (self.fall_count / fps) * self.GRAVITY)
         self.move(self.x_vel, self.y_vel)
 
         self.fall_count += 1
@@ -252,6 +266,10 @@ class BasePlayer(pygame.sprite.Sprite):
 
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+    
+    def find_boss(self, boss):
+        self.boss_distance = self.rect.x - boss.rect.x
+        self.boss_height = self.rect.y - boss.rect.y
 
     def switch_tag(self, tag):
         if tag == "p1":
@@ -344,10 +362,14 @@ class Player_2(BasePlayer):
 class BOSS(pygame.sprite.Sprite):
     
     GRAVITY = 1
-    SPRITES = load_sprite_sheets_boss("MainCharacters", "PinkMan", 32, 32, True)
+    SPRITES = load_sprite_sheets_boss("MainCharacters", "PinkMan", 48, 48, True)
     ANIMATION_DELAY = 3
-    
-
+    KICK = pygame.mixer.Sound("assets/Sounds/Kick_1.wav")
+    HIT = pygame.mixer.Sound("assets/Sounds/Hit_1.wav")
+    PUNCH = pygame.mixer.Sound("assets/Sounds/Punch_1.wav")
+    HIT.set_volume(1)  # Optional volume control
+    PUNCH.set_volume(1)  # Optional volume control
+    KICK.set_volume(1)  # Optional volume control
     
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -361,6 +383,7 @@ class BOSS(pygame.sprite.Sprite):
         self.target_player = None
         self.fireballs = pygame.sprite.Group()
         self.SPRITES["Fireball"] = load_sprite_sheets_boss("MainCharacters", "PinkMan", 32, 32, True)
+        self.sound_hit = 0
 
 
 
@@ -388,11 +411,23 @@ class BOSS(pygame.sprite.Sprite):
         #Move towards the nearest player.
         if self.target_player:
             if self.rect.x < self.target_player.rect.x:
-                self.x_vel = 2
+                self.x_vel = 1
                 self.direction = "right"
+                for i in range(-5, 5):
+                    if self.rect.x + i == self.target_player.rect.x:
+                        if self.rect.y - 380 <= self.target_player.rect.y:
+                            self.x_vel = 0
+                            self.rect.y = self.target_player.rect.y
+                        else:
+                            self.x_vel = 0
             else:
-                self.x_vel = -2
+                self.x_vel = -1
                 self.direction = "left"
+                for i in range(-5, 5):
+                    if self.rect.x + i == self.target_player.rect.x:
+                        if self.rect.y - 380 >= self.target_player.rect.y:
+                            self.x_vel = 0
+                            self.rect.y = self.target_player.rect.y
 
         self.rect.x += self.x_vel
 
@@ -408,20 +443,21 @@ class BOSS(pygame.sprite.Sprite):
 
         #Homing fireball (every 60 seconds)
         #if current_time - self.last_homing_fireball_time >= 60:
-            #if self.target_player:
-                #fireball_sprites = self.SPRITES["homing_fireball"]  # Use correct sprites
-                #fireball = HomingFireball(self.rect.centerx, self.rect.y + 10, self.target_player, fireball_sprites)
-                #self.fireballs.add(fireball)
-                #self.last_homing_fireball_time = current_time  # Reset homing cooldown
+        #    if self.target_player:
+         #       fireball_sprites = self.SPRITES["homing_fireball"]  # Use correct sprites
+          #      fireball = HomingFireball(self.rect.centerx, self.rect.y + 10, self.target_player, fireball_sprites)
+           #     self.fireballs.add(fireball)
+            #    self.last_homing_fireball_time = current_time  # Reset homing cooldown
 
         # Normal fireball (every 2 seconds)
-        if self.normal_fireball_cooldown <= 0:
-            direction = "right" if self.direction == "right" else "left"
-            fireball = Fireball(self.rect.centerx, self.rect.y + 10, 32, 32)
-            self.fireballs.add(fireball)
-            self.normal_fireball_cooldown = 120  # Reset cooldown
+        #if self.normal_fireball_cooldown <= 0:
+         #   fireball_sprites = self.SPRITES["fireball.png"]
+          #  direction = "right" if self.direction == "right" else "left"
+            #fireball = Fireball(self.rect.centerx, self.rect.y + 10, 32, 32)
+           # self.fireballs.add(fireball)
+            #self.normal_fireball_cooldown = 120  # Reset cooldown
 
-        self.normal_fireball_cooldown -= 1
+       # self.normal_fireball_cooldown -= 1
 
 
     def loop(self, fps, players, walls):
@@ -434,6 +470,14 @@ class BOSS(pygame.sprite.Sprite):
         if self.rect.bottom >= HEIGHT - 100:  # Adjust 100 to your ground level
             self.rect.bottom = HEIGHT - 100  # Keep the boss above the ground
             self.landed()  # Reset fall physics
+
+        for player in players:
+            if player.pushback == True:
+                if self.sound_hit == 1:
+                    self.PUNCH.play()
+                if self.sound_hit == 2:
+                    self.HIT.play()
+                    self.sound_hit = 0
 
         self.find_nearest_player(players)
         self.move_toward_player()
@@ -477,6 +521,37 @@ class BOSS(pygame.sprite.Sprite):
         """Draw the boss and fireballs."""
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
         self.fireballs.draw(win)
+
+        name_text = FONT.render("DODGY", True, (255, 0, 0))  # Red color
+        name_rect = name_text.get_rect(center=(self.rect.centerx - offset_x, self.rect.top - 15 - offset_y))
+        window.blit(name_text, name_rect)
+
+class Boss(pygame.sprite.Sprite):
+    GRAVITY = 1
+    SPRITES = load_sprite_sheets_boss("MainCharacters", "PinkMan", 48, 48, True)
+    ANIMATION_DELAY = 3
+
+    def __init__(self, x, y, width, height, ):
+        super().__init__
+        self.rect = pygame.Rect(x, y, width, height)
+        self.x_vel = 0
+        self.y_vel = 0 
+        self.mask = None
+        self.direction = "left"
+        self.animation_count = 0
+        self.fall_count = 0
+        self.jump_count = 0
+        self.hit = False
+        self.hit_count = 0
+        self.target_player = None
+    
+    def find_nearest_player(self, player, player_1, player_2):
+        if player.boss_distance > 0 and player_1.boss_distance > 0 and player_2.boss_distance > 0:   
+            if player.boss_distance > player_1.boss_distance and player.boss_distance > player_2.boss_distance:
+                if player.boss_height <= player_1.boss_height and player.boss_height <= player_2.boss_height:
+                    self.target_player = player
+
+
     
 class Object(pygame.sprite.Sprite):
     
@@ -607,8 +682,142 @@ class Tag():
             
             pygame.draw.polygon(window, WHITE, tag_points_2, 0)
 
+class Portal(Object):
+    SPRITES = pygame.image.load("Portal.png").convert_alpha()
+    TELEPORT_SOUND = pygame.mixer.Sound("assets/Sounds/teleport.wav")
+    TELEPORT_SOUND.set_volume(1)  # Optional volume control
+
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, "portal")
+        self.sprite = self.SPRITES
+        self.cooldown_duration = 10 * 1000  # 10 seconds
+        self.mask = pygame.mask.from_surface(self.sprite)
+        self.rect = pygame.Rect(x, y, width, height)
+        self.last_spawn_time = pygame.time.get_ticks()
+        self.cooldown = 500  # 0.5 seconds
+        self.active = True
+        self.deactivated_time = 0
+        self.start_x = x
+        self.start_y = y
+        self.angle = 0
+        self.pulse_scale = 1.0
+        self.pulse_direction = 1  # 1 = growing, -1 = shrinking
+
+    def draw(self, window, x, y, offset_x, offset_y):
+        if self.active:
+            # 🌀 Apply rotation and scale
+            rotated_image = pygame.transform.rotozoom(self.sprite, self.angle, self.pulse_scale)
+            rotated_rect = rotated_image.get_rect(center=(x - offset_x + self.sprite.get_width() // 2,
+                                                      y - offset_y + self.sprite.get_height() // 2))
+            window.blit(rotated_image, rotated_rect.topleft)
+
+    def spawn(self, window, x, y, offset_x, offset_y):
+        current_time = pygame.time.get_ticks()
+
+        if not self.active:
+            if current_time - self.deactivated_time >= self.cooldown_duration:
+                self.active = True
+
+        if self.active:
+            # 🔄 Rotate
+            self.angle = (self.angle + 2) % 360
+
+            # 💓 Pulse
+            pulse_speed = 0.01
+            self.pulse_scale += pulse_speed * self.pulse_direction
+            if self.pulse_scale >= 1.1:
+                self.pulse_direction = -1
+            elif self.pulse_scale <= 0.9:
+                self.pulse_direction = 1
+
+            # ✅ Always draw when active
+            self.draw(window, self.start_x, self.start_y, offset_x, offset_y)
+            self.rect.x = x
+            self.rect.y = y
 
     
+    def deactivate(self):
+        self.active = False
+        self.deactivated_time = pygame.time.get_ticks()
+        self.TELEPORT_SOUND.play()
+            
+
+    def update(self):
+        self.mask = pygame.mask.from_surface(self.sprite)
+
+    def loop(self):
+        self.update()
+        
+
+        
+
+class Trampoline(Object):
+    ANIMATION_DELAY = 3
+    GRAVITY = 1
+    SPRITES = load_sprite_sheets("Traps", "Trampoline", 32, 32, True)
+
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height)
+        self.image = load_sprite_sheets("Traps", "Trampoline", width, height, True)
+        self.rect = pygame.Rect(x, y, width, height)
+        self.hit_check = False
+        self.direction = "left"
+        self.mask = pygame.mask.from_surface(self.image["Idle_left"][0])
+        self.animation_count = 1
+        self.hit_count = 0
+
+    def draw(self, window, offset_x, offset_y):
+        window.blit((self.image["Idle_left"][0]), (self.rect.x - offset_x, self.rect.y - offset_y))
+    
+    def hit(self, players):
+        for player in players:
+            if self.rect.colliderect(player.rect):
+                player.y_vel = -self.GRAVITY * 30  # Adjust the jump height as needed
+                self.hit_check = True
+                self.animation_count = 0
+                player.jump_count = 0
+
+        
+    def loop(self, fps, players):
+        
+        if self.hit_check:
+            self.hit_count += 1
+        if self.hit_count > fps * 2:
+            self.hit_check = False
+            self.hit_count = 0
+        
+        self.hit(players)
+        self.update_sprite() 
+    
+    def update_sprite(self):
+        sprite_sheet = "Idle"
+        if self.hit_check:
+            sprite_sheet = "Jump"
+
+        sprite_sheet_name = f"{sprite_sheet}_{self.direction}"
+        sprites = self.SPRITES[sprite_sheet_name]
+
+        if len(sprites) == 0:
+            return  # Avoid division/modulo by zero
+
+        sprite_index = (self.animation_count // self.ANIMATION_DELAY) % len(sprites)
+        self.sprite = sprites[sprite_index]
+
+        self.animation_count += 1
+
+        # If jump animation is done, revert to idle
+        if self.hit_check and self.animation_count // self.ANIMATION_DELAY >= len(sprites):
+            self.hit_check = False
+            self.animation_count = 0
+
+        self.update()
+
+    
+    def update(self):
+        self.rect = self.sprite.get_rect(topleft = (self.rect.x, self.rect.y))
+        self.mask = pygame.mask.from_surface(self.sprite)
+
+
 def tag_logic(player, player_1, player_2):
     global TAG
     global last_switch_time
@@ -647,6 +856,19 @@ def tag_logic(player, player_1, player_2):
             TAG = "p"
             last_switch_time = current_time  # Reset cooldown timer
 
+def wall_jump(player, walls):
+    if pygame.sprite.collide_mask(player, walls):
+        if player.y_vel > 0:
+            player.y_vel = -()
+        elif player.y_vel < 0:
+            player.rect.top = walls.rect.bottom
+            player.hit_head()
+        if player.x_vel > 0:
+            player.rect.right = walls.rect.left
+        elif player.x_vel < 0:
+            player.rect.left = walls.rect.right
+
+
 def tag_logic_2player(player, player_1):
     global TAG
     global last_switch_time
@@ -681,7 +903,7 @@ def get_background(name):
 
     return tiles, image
 
-def draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time):
+def draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time, portal, portal_1):
     global NO_OF_PLAYERS
     for tile in background:
         window.blit(bg_image, tile)
@@ -703,8 +925,28 @@ def draw(window, background, bg_image, player, player_1, player_2, boss, objects
     font = pygame.font.Font(None, 40)
     timer_text = font.render(f"Time Left: {remaining_time}s", True, (255, 255, 255))
     window.blit(timer_text, (WIDTH - 220, 20))
+    portal.spawn(window, 96, HEIGHT - 128 - 32, offset_x, offset_y)
+    portal_1.spawn(window, 96 * 2, HEIGHT - 480, offset_x, offset_y)
+    
 
     pygame.display.update()
+
+def respawn(players):
+    for player in players:
+        if player.rect.y < -2000 and player.rect.x > 100:
+            player.rect.y = 50
+            player.rect.x = 1100
+            player.make_hit()
+            player.life_count -= 1
+            if player.life_count == 0:
+                player.KO()
+        if player.rect.y < -2000 and player.rect.x < 100:
+            player.rect.y = 100
+            player.rect.x = 50
+            player.make_hit()
+            player.life_count -= 1
+            if player.life_count == 0:
+                player.KO()
 
 
 def handle_vertical_collision(player, objects, dy):
@@ -725,6 +967,8 @@ def handle_vertical_collision(player, objects, dy):
 def pushback(player, boss):
      
     if pygame.sprite.collide_mask(player, boss):
+        boss.sound_hit += 1
+        player.pushback = True
         contact_point = player.rect.x
         contact_point_y = player.rect.y
         if player.direction == "left":
@@ -745,9 +989,8 @@ def pushback(player, boss):
                 player.y_vel = -10
             else:
                 player.x_vel = 0
-            
-            
-
+    else:
+        player.pushback = False
 
 def collide(player, objects, dx):
     player.move(dx, 0)
@@ -842,6 +1085,32 @@ def handle_fireball_collisions(fireballs, players):
                 fireball.kill()  # Remove fireball
                 #player.make_hit()  # Apply effect (e.g., slow down)
 
+def handle_portal_collision(portal, twin_portal, players, offset_x, offset_y):
+    for player in players:
+        player.update_sprite()
+
+        portal.update()
+        twin_portal.update()
+
+        if portal.active and pygame.sprite.collide_mask(player, portal):
+            player.rect.x = twin_portal.rect.x
+            player.rect.y = twin_portal.rect.y
+            portal.deactivate()
+            twin_portal.deactivate()
+            player.jump()
+
+        elif twin_portal.active and pygame.sprite.collide_mask(player, twin_portal):
+            player.rect.x = portal.rect.x
+            player.rect.y = portal.rect.y
+            portal.deactivate()
+            twin_portal.deactivate()
+            player.jump()
+
+        # Draw portals (only active ones are drawn)
+        portal.draw(window, 96, HEIGHT - 128 - 32, offset_x, offset_y)
+        twin_portal.draw(window, 96 * 2, HEIGHT - 480, offset_x, offset_y)
+
+
 
 def main():
     global TAG
@@ -865,19 +1134,27 @@ def main():
              for i in range(0, 4)]
     platform_1 = [Block(-i * block_size, HEIGHT - (block_size * 6), block_size, block_size) 
              for i in range(2, 6)]
+    platform_2 = [Block(192 + i * block_size, HEIGHT - (block_size * 8), block_size, block_size) 
+             for i in range(5, 8)]
+    platform_3 = [Block(192 + i * block_size, HEIGHT - (block_size * 8), block_size, block_size) 
+             for i in range(10, 12)]
     
     wall_left = [Block(-(block_size * 5), HEIGHT - block_size * i, block_size, block_size) 
              for i in range(0, 100)]
     wall_right = [Block(WIDTH + (block_size * 2), HEIGHT - block_size * i, block_size, block_size) 
              for i in range(0, 100)]
+    trampoline = Trampoline(1200 - block_size, HEIGHT - 152, 28, 28)
 
-    objects = [*floor, *platform, *platform_1, Block(0, HEIGHT - block_size * 2, block_size, block_size), fire, *wall_left, *wall_right]
-        
+    objects = [*floor, *platform, *platform_1, *platform_2, *platform_3, Block(0, HEIGHT - block_size * 2, block_size, block_size), fire, *wall_left, *wall_right, trampoline]
+    
+    portal = Portal(96, HEIGHT - 128 - 32, 32, 32)
+    portal_1 = Portal(96 * 2, HEIGHT - 480, 32, 32)
     
     
     start_time = pygame.time.get_ticks()
-    timer_duration = 180000
+    timer_duration = TIME
     
+    players = [player, player_1, player_2] if NO_OF_PLAYERS == 3 else [player, player_1]
 
     offset_x = 0
     offset_x_1 = 0
@@ -888,10 +1165,15 @@ def main():
     scroll_area_width = 200
     scroll_area_height = 96
 
+    players_to_track = [player, player_1, player_2]  # adjust based on your code
+    
 
     run = True
     while run:
         clock.tick(FPS)
+
+        respawn([player, player_1, player_2])
+        trampoline.loop(FPS, players)
 
         if NO_OF_PLAYERS == 2:
             boss.loop(FPS, [player, player_1], objects)
@@ -905,6 +1187,7 @@ def main():
             handle_fireball_collisions(boss.fireballs, [player, player_1])
         if NO_OF_PLAYERS == 3:
             handle_fireball_collisions(boss.fireballs, [player, player_1, player_2])
+            handle_portal_collision(portal, portal_1, players, offset_x, offset_y)
 
         player.tag_check(TAG_COUNT, 32, 64)
         elapsed_time = pygame.time.get_ticks() - start_time
@@ -938,7 +1221,8 @@ def main():
         elif NO_OF_PLAYERS == 3:
             tag_logic(player, player_1, player_2)
         
-
+        portal.loop()
+        portal_1.loop()
         player.loop(FPS)
         player_1.loop(FPS)
         if NO_OF_PLAYERS == 3:
@@ -952,11 +1236,14 @@ def main():
         
         if NO_OF_PLAYERS == 3:
             if player.rect.y < 700:
-                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time)
+                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time, portal, portal_1)
+                
             elif player.rect.y > 700 and player_1.rect.y < 700 and player_2.rect.y < 700:
-                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x_1, offset_y_1, tag_marker, tag, remaining_time)
+                
+                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x_1, offset_y_1, tag_marker, tag, remaining_time, portal, portal_1)
             elif player.rect.y > 700 and player_1.rect.y > 700 and player_2.rect.y < 700:
-                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x_2, offset_y_2, tag_marker, tag, remaining_time)
+                
+                draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x_2, offset_y_2, tag_marker, tag, remaining_time, portal, portal_1)
                 time.sleep(1)
                 pygame.quit()
                 quit()
@@ -1011,4 +1298,4 @@ def main():
     quit()
 
 if __name__ == "__main__":
-    main()    
+    main()
