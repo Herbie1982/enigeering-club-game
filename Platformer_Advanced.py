@@ -5,6 +5,7 @@ import time
 import pygame
 from os import listdir
 from os.path import isfile, join
+from threading import Timer
 pygame.init()
 
 pygame.display.set_caption("Platformer Advanced")
@@ -69,7 +70,7 @@ class Player(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "MaskDude", 32, 32, True)
     ANIMATION_DELAY = 3
-    POTION_EFFECTS = [False, False, False, False, False, False] #makes room for 6 magic effects for each player; currently 1 magic effect is in use (curse, which attracts the boss)
+    POTION_EFFECTS = [False, False, False, False, False, False] #makes room for 6 magic effects for each player; currently 3 magic effects are in use (curse, which attracts the boss, tag, which makes you tag and protection, which protects you from the boss)
    
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -199,6 +200,7 @@ class Player_1(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "VirtualGuy", 32, 32, True)
     ANIMATION_DELAY = 3
+    POTION_EFFECTS = [False, False, False, False, False, False]
    
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -317,6 +319,7 @@ class Player_2(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "NinjaFrog", 32, 32, True)
     ANIMATION_DELAY = 3
+    POTION_EFFECTS = [False, False, False, False, False, False]
    
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -447,6 +450,22 @@ class Block(Object):
         block = get_block(size)
         self.image.blit(block, (0,0))
         self.mask = pygame.mask.from_surface(self.image)
+
+class Potion(Object):
+
+    def __init__():
+        self.EFFECT = None #the potion effect; None is the undetermined effect
+        self.EMPTY = False #whether the potion is empty or not
+
+    def clear_effect (effect, player):
+        if effect != None:
+            player.POTION_EFFECTS[effect] = False
+
+    def give_effect (self, player, time):
+        if self.EFFECT != None:
+            player.POTION_EFFECTS[self.EFFECT] = True
+            clear = Timer (time, self.clear_effect, (self.EFFECT, player))
+            clear.start()
 
 class Fire(Object):
     ANIMATION_DELAY = 3
