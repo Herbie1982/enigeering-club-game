@@ -69,6 +69,7 @@ class Player(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "MaskDude", 32, 32, True)
     ANIMATION_DELAY = 3
+    POTION_EFFECTS = [False, False, False, False, False, False] #makes room for 6 magic effects for each player; currently 1 magic effect is in use (curse, which attracts the boss)
    
     def __init__(self, x, y, width, height):
         super().__init__()
