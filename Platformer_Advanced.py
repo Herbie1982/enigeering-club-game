@@ -459,7 +459,6 @@ class Potion(Object): #responsible for managing all magical effects
     TIME = None #time that the effect given by this potion lasts
     COSTUMES = ["../Potions/pixil-frame-0.png", "../Potions/pixil-frame-0 (1).png", "../Potions/pixil-frame-0 (2).png", "../Potions/pixil-frame-0 (3).png", "../Potions/pixil-frame-0 (4).png", "../Potions/pixil-frame-0 (5).png"] #a list of all the potion colours
     CURRENT_COSTUME = None #current colour or empty bottle texture
-    EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #list of effects the potion can take on
     x = 0 #x position
     y = 0 #y position
     Tx = None #true x position (position relative to the map)
@@ -469,10 +468,12 @@ class Potion(Object): #responsible for managing all magical effects
     global Ty_ALL #list of all possible values for Ty; value determined by ID
     global POTIONS #list of existing potions
     global EMPTYSLOTS #number of places where there could have been a potion but there isn't
+    global EFFECT_LIST #list of all the potion effects
     Tx_ALL = [1, 2, 3]
     Ty_ALL = [1, 2, 3]
     POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
     EMPTYSLOTS = 0
+    EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #"invalid effect" means a work in progress
 
     def __init__(self, x, y, width, height, name = "Untitled Potion"):
         super().__init__(x, y, width, height, name)
