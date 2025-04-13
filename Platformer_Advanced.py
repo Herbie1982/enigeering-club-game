@@ -464,7 +464,7 @@ class Potion(Object): #responsible for managing all magical effects
     y = 0 #y position
     Tx = None #true x position (position relative to the map)
     Ty = None #true y position
-    ID = None #a  tag given to the potion to determine its properties
+    ID = None #a tag given to the potion to determine its position
     global Tx_ALL #list of all possible valies for Tx; value determined by ID
     global Ty_ALL #list of all possible values for Ty; value determined by ID
     global POTIONS #list of existing potions
@@ -473,10 +473,11 @@ class Potion(Object): #responsible for managing all magical effects
     Ty_ALL = [1, 2, 3]
     POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
 
-    def __init__():
-        self.EFFECT = random.randint(0, 5)
+    def __init__(self, x, y, width, height, name = "Untitled Potion"):
+        super().__init__(x, y, width, height, name)
+        self.EFFECT = random.randint(0, 5) #0 is curse, 1 is tag and 2 is protection; other values point to works in progress which currently do nothing and are printed as "invalid effect"
         while self.ID == None or POTIONS[self.ID] == True: #until the ID is valid and free
-            self.ID = random.randint (0, len(POTIONS) - (EMPTY + 1)) #gets a new ID; has to be random so the effects and positions of each potion are randomised
+            self.ID = random.randint (0, len(POTIONS) - (EMPTY + 1)) #gets a new ID; has to be random so the effects and positions of each potion are randomised; makes sure there are EMPTY empty spaces
         self.Tx = Tx_ALL[self.ID]
         self.Ty = Tx_ALL[self.ID]
     
@@ -490,7 +491,7 @@ class Potion(Object): #responsible for managing all magical effects
             clear = Timer (time, self.clear_effect, (self.EFFECT, player)) #removes it after the effect duration ends
             clear.start()
 
-    def refill():
+    def refill(self):
         self.EMPTY = False
 
     def get_drunk(self, player): #this potion did NOT drink too much alcohol; I mean get_drunk as in someone drank it
@@ -501,15 +502,17 @@ class Potion(Object): #responsible for managing all magical effects
         self.COOLDOWN = float(random.randint(30, 90)) + random.random()
         refill = Timer(self.COOLDOWN, self.refill, ()) #refills the potion (potions are magical so this should make sense)
 
-    def update(self, players):
+    def update(self, players, offsets):
         if self.EMPTY:
             self.CURRENT_COSTUME = pygame.image.load("../Potions/pixil-frame-0 (6).png") #empty bottle
         else:
             self.CURRENT_COSTUME = pygame.image.load(self.COSTUMES[self.EFFECT]) #coloured according to effect
             for p in players:
                 if pygame.sprite.collide_mask(self, players[p]):
-                    self.get_drunk(self, players[p])
-        self.image.blit(self.CURRENT_COSTUME, (self.x, self.y))
+                    self.get_drunk(players[p])
+        self.x = self.Tx - offsets[0] #x offset
+        self.y = self.Ty - offsets[1] #y offset
+        self.CURRENT_COSTUME.blit(self.x, self.y)
 
 class Fire(Object):
     ANIMATION_DELAY = 3
