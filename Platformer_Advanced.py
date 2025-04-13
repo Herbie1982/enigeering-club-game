@@ -468,16 +468,17 @@ class Potion(Object): #responsible for managing all magical effects
     global Tx_ALL #list of all possible valies for Tx; value determined by ID
     global Ty_ALL #list of all possible values for Ty; value determined by ID
     global POTIONS #list of existing potions
-    global EMPTY #number of places where there could have been a potion but there isn't
+    global EMPTYSLOTS #number of places where there could have been a potion but there isn't
     Tx_ALL = [1, 2, 3]
     Ty_ALL = [1, 2, 3]
     POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
+    EMPTYSLOTS = 0
 
     def __init__(self, x, y, width, height, name = "Untitled Potion"):
         super().__init__(x, y, width, height, name)
         self.EFFECT = random.randint(0, 5) #0 is curse, 1 is tag and 2 is protection; other values point to works in progress which currently do nothing and are printed as "invalid effect"
         while self.ID == None or POTIONS[self.ID] == True: #until the ID is valid and free
-            self.ID = random.randint (0, len(POTIONS) - (EMPTY + 1)) #gets a new ID; has to be random so the effects and positions of each potion are randomised; makes sure there are EMPTY empty spaces
+            self.ID = random.randint (0, len(POTIONS) - (EMPTYSLOTS + 1)) #gets a new ID; has to be random so the effects and positions of each potion are randomised; makes sure there are EMPTY empty spaces
         self.Tx = Tx_ALL[self.ID]
         self.Ty = Tx_ALL[self.ID]
     
