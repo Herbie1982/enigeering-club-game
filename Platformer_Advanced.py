@@ -482,7 +482,7 @@ class Potion(Object): #responsible for managing all magical effects
         self.Tx = Tx_ALL[self.ID]
         self.Ty = Tx_ALL[self.ID]
     
-    def clear_effect (effect, player):
+    def clear_effect (self, effect, player):
         if effect != None:
             player.POTION_EFFECTS[effect] = False #removes the potion effect
 
@@ -543,7 +543,7 @@ class Fire(Object):
         self.timer = pygame.time.get_ticks()  # Store the time it disappeared
         self.rect.topleft = (X, Y)  # Move hitbox off-screen
 
-    def reappear(self, player, player_1):
+    def reappear(self, player, player_1, player_2):
         global FIRE_COUNT
         FIRE_COUNT = 0
         
@@ -838,6 +838,7 @@ def main():
 
     run = True
     while run:
+        tag = TAG
         clock.tick(FPS)
         player.tag_check(TAG_COUNT, 32, 64)
         elapsed_time = pygame.time.get_ticks() - start_time
@@ -861,10 +862,7 @@ def main():
                     player_1.jump()
                 if event.key == pygame.K_i and player_2.jump_count < 2:
                     player_2.jump()
-        fire.loop(player, player_1)  # Update fire state
-        
-
-        tag = TAG   
+        fire.loop(player, player_1)  # Update fire state 
         
         tag_logic(player, player_1, player_2)
         
