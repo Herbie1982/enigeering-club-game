@@ -452,7 +452,7 @@ class Block(Object):
         self.image.blit(block, (0,0))
         self.mask = pygame.mask.from_surface(self.image)
 
-class Potion(Object):
+class Potion(Object): #responsible for managing all magical effects
     EFFECT = None #the potion effect; None is the undetermined effect
     EMPTY = False #whether the potion is empty or not
     COOLDOWN = None #refill cooldown after the potion has been drunk
@@ -462,10 +462,24 @@ class Potion(Object):
     EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #list of effects the potion can take on
     x = 0 #x position
     y = 0 #y position
-    
+    Tx = None #true x position (position relative to the map)
+    Ty = None #true y position
+    ID = None #a  tag given to the potion to determine its properties
+    global Tx_ALL #list of all possible valies for Tx; value determined by ID
+    global Ty_ALL #list of all possible values for Ty; value determined by ID
+    global POTIONS #list of existing potions
+    global EMPTY #number of places where there could have been a potion but there isn't
+    Tx_ALL = [1, 2, 3]
+    Ty_ALL = [1, 2, 3]
+    POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
+
     def __init__():
         self.EFFECT = random.randint(0, 5)
-
+        while self.ID == None or POTIONS[self.ID] == True: #until the ID is valid and free
+            self.ID = random.randint (0, len(POTIONS) - (EMPTY + 1)) #gets a new ID; has to be random so the effects and positions of each potion are randomised
+        self.Tx = Tx_ALL[self.ID]
+        self.Ty = Tx_ALL[self.ID]
+    
     def clear_effect (effect, player):
         if effect != None:
             player.POTION_EFFECTS[effect] = False #removes the potion effect
@@ -533,15 +547,17 @@ class Fire(Object):
         
         self.active = True
         
-        new_x = random.randint(0, 1)  # Pick a new X position
+        new_x = random.randint(0, 2)  # Pick a new X position
         
         if new_x == 0:
             self.rect.topleft = (player.rect.x, HEIGHT - block_size)  # Set new position
         
         if new_x == 1:
             self.rect.topleft = (player_1.rect.x, HEIGHT - block_size)  # Set new position
+            
+        if new_x == 2:
+            self.rect.topleft = (player_2.rect.x, HEIGHT - block_size)  # Set new position
         
-
     def loop(self, player, player_1):
         if not self.active:
             self.image = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)  # Fully transparent image
