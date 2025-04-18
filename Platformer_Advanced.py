@@ -208,7 +208,7 @@ class Player(pygame.sprite.Sprite):
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
         
-class Player_1(pygame.sprite.Sprite):
+class Player_1(Player):
     
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "VirtualGuy", 32, 32, True)
@@ -327,7 +327,7 @@ class Player_1(pygame.sprite.Sprite):
     def draw(self, win, offset_x, offset_y):
         win.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
 
-class Player_2(pygame.sprite.Sprite):
+class Player_2(Player):
     
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "NinjaFrog", 32, 32, True)
