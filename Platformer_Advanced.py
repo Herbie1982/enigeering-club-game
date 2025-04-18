@@ -11,13 +11,13 @@ pygame.init()
 
 pygame.display.set_caption("Platformer Advanced")
 
-#global variables for potions; descriptions of each variable are in the Potion class definition
-Tx_ALL = [1, 2, 3]
-Ty_ALL = [1, 2, 3]
+#global variables for potions
+Tx_ALL = [1, 2, 3] #all possible values of Tx in a potion
+Ty_ALL = [1, 2, 3] #all possible values of Ty in a potion
 POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
-EMPTYSLOTS = 0
-EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #"invalid effect" means a work in progress
-ACTIVE_EFFECTS = [False, False, False] #nobody starts with any effect
+EMPTYSLOTS = 0 #possible slots for potion generation which will never be occupied
+EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #a list of all the effects; "invalid effect" means a work in progress
+ACTIVE_EFFECTS = [False, False, False] #a list of effect activity statuses (whether at least one player has the effect); nobody starts with any effect
 
 #other global variables
 PLAYERS = ["p", "p1", "p2"] #list of players; used in tag logic
@@ -476,11 +476,6 @@ class Potion(Object): #responsible for managing all magical effects
     Tx = None #true x position (position relative to the map); value determined by ID (see below)
     Ty = None #true y position; value determined by ID
     ID = None #a tag given to the potion to determine its position
-    global Tx_ALL #list of all possible valies for Tx
-    global Ty_ALL #list of all possible values for Ty
-    global POTIONS #list of potion existence statuses (whether a potion exists with such ID)
-    global EMPTYSLOTS #number of places where there could have been a potion but there isn't due to limited potion generation
-    global EFFECT_LIST #list of all the potion effects
     global ACTIVE_EFFECTS #list of effect statuses (whether at least one player has the effect)
 
     def __init__(self, x, y, width, height, name = "Untitled Potion"):
