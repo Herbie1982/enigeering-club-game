@@ -904,7 +904,6 @@ def get_background(name):
     return tiles, image
 
 def draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time, portal, portal_1):
-    global NO_OF_PLAYERS
     for tile in background:
         window.blit(bg_image, tile)
 
