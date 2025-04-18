@@ -11,6 +11,18 @@ pygame.init()
 
 pygame.display.set_caption("Platformer Advanced")
 
+#global variables for potions; descriptions of each variable are in the Potion class definition
+Tx_ALL = [1, 2, 3]
+Ty_ALL = [1, 2, 3]
+POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
+EMPTYSLOTS = 0
+EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #"invalid effect" means a work in progress
+ACTIVE_EFFECTS = [False, False, False] #nobody starts with any effect
+
+#other global variables
+PLAYERS = ["p", "p1", "p2"] #list of players; used in tag logic
+PREVTAG = None #also used in tag logic
+TAG_INFLICTED = [False, False, False] #list of player tag effect statuses (whether they are inflicted with the tag effect)
 START_VEL = 6
 WIDTH, HEIGHT = 1200, 700
 FPS = 60
@@ -461,19 +473,15 @@ class Potion(Object): #responsible for managing all magical effects
     CURRENT_COSTUME = None #current colour or empty bottle texture
     x = 0 #x position
     y = 0 #y position
-    Tx = None #true x position (position relative to the map)
-    Ty = None #true y position
+    Tx = None #true x position (position relative to the map); value determined by ID (see below)
+    Ty = None #true y position; value determined by ID
     ID = None #a tag given to the potion to determine its position
-    global Tx_ALL #list of all possible valies for Tx; value determined by ID
-    global Ty_ALL #list of all possible values for Ty; value determined by ID
-    global POTIONS #list of existing potions
-    global EMPTYSLOTS #number of places where there could have been a potion but there isn't
+    global Tx_ALL #list of all possible valies for Tx
+    global Ty_ALL #list of all possible values for Ty
+    global POTIONS #list of potion existence statuses (whether a potion exists with such ID)
+    global EMPTYSLOTS #number of places where there could have been a potion but there isn't due to limited potion generation
     global EFFECT_LIST #list of all the potion effects
-    Tx_ALL = [1, 2, 3]
-    Ty_ALL = [1, 2, 3]
-    POTIONS = [False, False, False] #false means there is no potion with ID matching the element number in the array; true means there is a potion with such an ID
-    EMPTYSLOTS = 0
-    EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #"invalid effect" means a work in progress
+    global ACTIVE_EFFECTS #list of effect statuses (whether at least one player has the effect)
 
     def __init__(self, x, y, width, height, name = "Untitled Potion"):
         super().__init__(x, y, width, height, name)
@@ -512,6 +520,10 @@ class Potion(Object): #responsible for managing all magical effects
             for p in players:
                 if pygame.sprite.collide_mask(self, players[p]):
                     self.get_drunk(players[p])
+        ACTIVE_EFFECTS[self.EFFECT] = False #each potion is responsible for managing the element in ACTIVE_EFFECTS which corresponds to its own effect
+        for p in players:
+            if players[p].EFFECT_LIST[self.EFFECT] = True:
+                ACTIVE_EFFECTS[self.EFFECT] = True
         self.x = self.Tx - offsets[0] #x offset
         self.y = self.Ty - offsets[1] #y offset
         self.CURRENT_COSTUME.blit(self.x, self.y)
@@ -629,6 +641,7 @@ class Tag():
     
 def tag_logic(player, player_1, player_2):
     global TAG
+    global PREVTAG
     global last_switch_time
     
     player.update_sprite()
@@ -638,7 +651,20 @@ def tag_logic(player, player_1, player_2):
     
     current_time = pygame.time.get_ticks()
     switch_cooldown = 500  # Cooldown time in milliseconds
+    PREVTAG = TAG #save the current value of TAG
+    TAG_INFLICTED = [False, False, False]
+    if player.EFFECT_LIST[1]:
+        TAG_INFLICTED[0] = True
+    if player_1.EFFECT_LIST[1]:
+        TAG_INFLICTED[1] = True
+    if player_2.EFFECT_LIST[1]:
+        TAG_INFLICTED[2] = True
 
+    if not (TAG_INFLICTED[0] and TAG_INFLICTED[1] and TAG_INFLICTED[2]): #if some players but not everyone has the tag effect
+        for p in PLAYERS:
+            while TAG == PLAYERS[p] and not TAG_INFLICTED[p]: #whenever a player is tag but cannot be tag due to others having the tag  effect and not them
+                TAG == PLAYERS[random.randint(0, 2)] #attempts to make another player tag; if the attempt results in no change the process is repeated
+    
     # Only switch tag if the current "tag" player is involved in the collision
     if TAG == "p" and pygame.sprite.collide_mask(player, player_1):
         if current_time - last_switch_time > switch_cooldown:
@@ -665,7 +691,8 @@ def tag_logic(player, player_1, player_2):
             TAG = "p"
             last_switch_time = current_time  # Reset cooldown timer
 
-
+    if TAG_INFLICTED[PLAYERS.index(PREVTAG)] and not TAG_INFLICTED[PLAYERS.index(TAG)]: #if the original tag has the tag effect but the current one doesn't
+        TAG = PREVTAG #revert to the original tag since someone inflicted with the tag effect cannot tag someone without said effect
 
 def get_background(name):
     image = pygame.image.load(join("assets", "Background", name))
