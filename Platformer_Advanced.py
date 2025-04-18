@@ -869,7 +869,7 @@ def main():
 
         if remaining_time <= 0:
             print("Time's up! Game Over.")
-            print (tag, "loses.")
+            print (TAG, "loses.")
             break
         
 
