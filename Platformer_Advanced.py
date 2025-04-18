@@ -522,7 +522,7 @@ class Potion(Object): #responsible for managing all magical effects
                     self.get_drunk(players[p])
         ACTIVE_EFFECTS[self.EFFECT] = False #each potion is responsible for managing the element in ACTIVE_EFFECTS which corresponds to its own effect
         for p in players:
-            if players[p].EFFECT_LIST[self.EFFECT] = True:
+            if players[p].EFFECT_LIST[self.EFFECT] == True:
                 ACTIVE_EFFECTS[self.EFFECT] = True
         self.x = self.Tx - offsets[0] #x offset
         self.y = self.Ty - offsets[1] #y offset
