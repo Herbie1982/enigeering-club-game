@@ -99,6 +99,7 @@ class Player(pygame.sprite.Sprite):
         self.hit_count = 0
         triangle_points = [(x - height - 64, y - width/2), (x - height - 64, y + width/2), (x - height - 10, y - width/2)]
         self.fire_count = 0
+        self.tag_count = 0
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 7.7
@@ -216,18 +217,7 @@ class Player_1(Player):
     POTION_EFFECTS = [False, False, False, False, False, False]
    
     def __init__(self, x, y, width, height):
-        super().__init__()
-        self.rect = pygame.Rect(x, y, width, height)
-        self.x_vel = 0
-        self.y_vel = 0
-        self.mask = None
-        self.direction = "left"
-        self.animation_count = 0
-        self.fall_count = 0
-        self.jump_count = 0
-        self.hit = False
-        self.hit_count = 0
-        self.tag_count = 0
+        super().__init__(x, y, width, height)
         
 
     def jump(self):
@@ -335,18 +325,7 @@ class Player_2(Player):
     POTION_EFFECTS = [False, False, False, False, False, False]
    
     def __init__(self, x, y, width, height):
-        super().__init__()
-        self.rect = pygame.Rect(x, y, width, height)
-        self.x_vel = 0
-        self.y_vel = 0 
-        self.mask = None
-        self.direction = "left"
-        self.animation_count = 0
-        self.fall_count = 0
-        self.jump_count = 0
-        self.hit = False
-        self.hit_count = 0
-        triangle_points = [(x - height - 64, y - width/2), (x - height - 64, y + width/2), (x - height - 10, y - width/2)]
+        super().__init__(x, y, width, height)
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 7.7
