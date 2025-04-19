@@ -500,7 +500,7 @@ class Potion(Object): #responsible for managing all magical effects
         self.EMPTY = False
 
     def get_drunk(self, player): #this potion did NOT drink too much alcohol; I mean get_drunk as in someone drank it
-        print("Somebody drank a potion of ", self.EFFECT_LIST[self.EFFECT], "!")
+        print("Somebody drank a potion of ", EFFECT_LIST[self.EFFECT], "!")
         self.EMPTY = True #well, somebody drank the potion so it must be empty right?
         self.TIME = float(random.randint(15, 45)) + random.random()
         self.give_effect(self.EFFECT, player, self.TIME) #this makes the potion a potion, or else it's... corrupted prime???
