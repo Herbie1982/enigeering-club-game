@@ -18,6 +18,7 @@ POTIONS = [False, False, False] #false means there is no potion with ID matching
 EMPTYSLOTS = 0 #possible slots for potion generation which will never be occupied
 EFFECT_LIST = ["curse", "tag", "protection", "invalid effect", "invalid effect", "invalid effect"] #a list of all the effects; "invalid effect" means a work in progress
 ACTIVE_EFFECTS = [False, False, False] #a list of effect activity statuses (whether at least one player has the effect); nobody starts with any effect
+COSTUMES = ["../assets/Potions/pixil-frame-0.png", "../assets/Potions/pixil-frame-0 (1).png", "../assets/Potions/pixil-frame-0 (2).png", "../assets/Potions/pixil-frame-0 (3).png", "../assets/Potions/pixil-frame-0 (4).png", "../assets/Potions/pixil-frame-0 (5).png"] #a list of all the potion colours
 
 #other global variables
 PLAYERS = ["p", "p1", "p2"] #list of players; used in tag logic
@@ -448,7 +449,6 @@ class Potion(Object): #responsible for managing all magical effects
     EMPTY = False #whether the potion is empty or not
     COOLDOWN = None #refill cooldown after the potion has been drunk
     TIME = None #time that the effect given by this potion lasts
-    COSTUMES = ["../Potions/pixil-frame-0.png", "../Potions/pixil-frame-0 (1).png", "../Potions/pixil-frame-0 (2).png", "../Potions/pixil-frame-0 (3).png", "../Potions/pixil-frame-0 (4).png", "../Potions/pixil-frame-0 (5).png"] #a list of all the potion colours
     CURRENT_COSTUME = None #current colour or empty bottle texture
     x = 0 #x position
     y = 0 #y position
@@ -490,7 +490,7 @@ class Potion(Object): #responsible for managing all magical effects
         if self.EMPTY:
             self.CURRENT_COSTUME = pygame.image.load("../Potions/pixil-frame-0 (6).png") #empty bottle
         else:
-            self.CURRENT_COSTUME = pygame.image.load(self.COSTUMES[self.EFFECT]) #coloured according to effect
+            self.CURRENT_COSTUME = pygame.image.load(COSTUMES[self.EFFECT]) #coloured according to effect
             for p in players:
                 if pygame.sprite.collide_mask(self, players[p]):
                     self.get_drunk(players[p])
