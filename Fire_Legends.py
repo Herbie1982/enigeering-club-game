@@ -137,6 +137,45 @@ class HomingFireball(pygame.sprite.Sprite):
         if self.lifetime <= 0:
             self.kill()
 
+class Laser(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, direction):
+        super().__init__()
+        self.rect = pygame.Rect(x, y, width, height) # Rect.
+        self.x_vel = 0 # Initial X velocity.
+        self.sprite = pygame.draw.rect(self.rect, [255, 255, 255], x, y, x + width, y + height) # Define the laser and its image. 
+        self.direction = direction # Move as player
+        self.lifetime = 3 * 1000 # Laser lifetime...
+        self.shot = False
+        self.start_time = 0
+
+    def draw(window, self, offset_x, offset_y):
+        window.blit(self.sprite, (self.rect.x - offset_x, self.rect.y - offset_y))
+    
+    def target(self):
+        if not self.active:
+            if self.direction == "left":
+                self.x_vel = -15
+            elif self.direction == "right":
+                self.x_vel = 15
+            else:
+                self.x_vel = 0
+    
+    def move (self, dx):
+        self.rect.x += dx
+    
+    def shoot_check(self, player):
+        if self.shot:
+            self.active
+        current_time = pygame.time.get_ticks()
+        if self.active:
+            if current_time - self.lifetime > self.start_time:
+                self.active = False
+    
+    def loop(self, player):
+        self.target()
+        self.move(self.x_vel)
+        
+
 class BasePlayer(pygame.sprite.Sprite):
     GRAVITY = 1
     SPRITES = load_sprite_sheets("MainCharacters", "MaskDude", 32, 32, True)
@@ -159,6 +198,11 @@ class BasePlayer(pygame.sprite.Sprite):
         self.life_count = 3
         self.fire_count = 0
         self.pushback = False
+        self.on_wall_left = False
+        self.on_wall_right = False
+        self._jump_ = False
+        self.buff = False
+        self.hp = 100
 
     def jump(self):
         self.y_vel = -self.GRAVITY * 7.7
@@ -166,7 +210,15 @@ class BasePlayer(pygame.sprite.Sprite):
         self.jump_count +=1
         if self.jump_count == 1:
             self.fall_count = 0
-        
+        self._jump_ = True
+
+    def launch(self):
+        if self._jump_:
+            self.y_vel = -self.GRAVITY * 20
+            self.animation_count = 0
+            self.jump_count == 0
+            if self.jump_count == 1:
+                self.fall_count = 0   
 
     def move (self, dx, dy):
         self.rect.x += dx
@@ -174,6 +226,9 @@ class BasePlayer(pygame.sprite.Sprite):
 
     def make_hit(self):
         self.hit = True
+    
+    def make_hit_good(self):
+        self.buff = True
     
     def KO(self):
         self.rect.x = 1000
@@ -194,14 +249,18 @@ class BasePlayer(pygame.sprite.Sprite):
            self.animation_count = 0
 
     def loop(self, fps):
-
+        self._jump_ = False
         self.y_vel += min(1, (self.fall_count / fps) * self.GRAVITY)
         self.move(self.x_vel, self.y_vel)
 
         self.fall_count += 1
-        
+
+        if self.on_wall_left or self.on_wall_right:
+            self.launch()        
         if self.hit:
             self.hit_count += 1
+            self.x_vel = 1
+        
         if self.hit_count > fps * 2:
             self.hit = False
             self.hit_count = 0
@@ -525,33 +584,6 @@ class BOSS(pygame.sprite.Sprite):
         name_text = FONT.render("DODGY", True, (255, 0, 0))  # Red color
         name_rect = name_text.get_rect(center=(self.rect.centerx - offset_x, self.rect.top - 15 - offset_y))
         window.blit(name_text, name_rect)
-
-class Boss(pygame.sprite.Sprite):
-    GRAVITY = 1
-    SPRITES = load_sprite_sheets_boss("MainCharacters", "PinkMan", 48, 48, True)
-    ANIMATION_DELAY = 3
-
-    def __init__(self, x, y, width, height, ):
-        super().__init__
-        self.rect = pygame.Rect(x, y, width, height)
-        self.x_vel = 0
-        self.y_vel = 0 
-        self.mask = None
-        self.direction = "left"
-        self.animation_count = 0
-        self.fall_count = 0
-        self.jump_count = 0
-        self.hit = False
-        self.hit_count = 0
-        self.target_player = None
-    
-    def find_nearest_player(self, player, player_1, player_2):
-        if player.boss_distance > 0 and player_1.boss_distance > 0 and player_2.boss_distance > 0:   
-            if player.boss_distance > player_1.boss_distance and player.boss_distance > player_2.boss_distance:
-                if player.boss_height <= player_1.boss_height and player.boss_height <= player_2.boss_height:
-                    self.target_player = player
-
-
     
 class Object(pygame.sprite.Sprite):
     
@@ -587,12 +619,19 @@ class Fire(Object):
         self.animation_count = 0
         self.animation_name = "off"
         self.active = True  # Fire is active by default
+        self.deactivated_time = 0
+        self.cooldown_duration = 10 * 1000
 
     def on(self):
         self.animation_name = "on"
 
     def off(self):
+        current_time = pygame.time.get_ticks()
         self.animation_name = "off"
+        if self.animation_name == "off":
+            if current_time - self.deactivated_time >= self.cooldown_duration:
+                self.animation_name = "on"
+                self.deactivated_time = current_time
 
     def disappear(self):
         global X, Y, FIRE_COUNT
@@ -647,7 +686,6 @@ class Fire(Object):
     def redraw(self, window):
         if self.active:
             window.blit(self.image, self.rect)    
-
 
 class Tag():
 
@@ -765,6 +803,7 @@ class Trampoline(Object):
         self.mask = pygame.mask.from_surface(self.image["Idle_left"][0])
         self.animation_count = 1
         self.hit_count = 0
+        self.launch_count = 0
 
     def draw(self, window, offset_x, offset_y):
         window.blit((self.image["Idle_left"][0]), (self.rect.x - offset_x, self.rect.y - offset_y))
@@ -776,7 +815,6 @@ class Trampoline(Object):
                 self.hit_check = True
                 self.animation_count = 0
                 player.jump_count = 0
-
         
     def loop(self, fps, players):
         
@@ -785,6 +823,7 @@ class Trampoline(Object):
         if self.hit_count > fps * 2:
             self.hit_check = False
             self.hit_count = 0
+        self.launch_count += 1
         
         self.hit(players)
         self.update_sprite() 
@@ -904,6 +943,7 @@ def get_background(name):
     return tiles, image
 
 def draw(window, background, bg_image, player, player_1, player_2, boss, objects, offset_x, offset_y, tag_marker, tag, remaining_time, portal, portal_1):
+    global NO_OF_PLAYERS
     for tile in background:
         window.blit(bg_image, tile)
 
@@ -1009,14 +1049,28 @@ def handle_move(player, objects, boss):
     global PLAYER_VEL
     
     keys = pygame.key.get_pressed()
+    player.on_wall_left = False
+    player.on_wall_right = False
 
     player.x_vel = 0
     collide_left = collide(player, objects, -PLAYER_VEL * 2)
     collide_right = collide(player, objects, PLAYER_VEL * 2)
 
-    if keys[pygame.K_LEFT] and not collide_left:
+    if keys[pygame.K_LEFT] and not collide_left and not player.hit and not player.buff:
         player.move_left(PLAYER_VEL)
-    if keys[pygame.K_RIGHT] and not collide_right:
+    elif keys[pygame.K_LEFT] and not collide_left and  player.hit:
+        player.move_left(2)
+    elif keys[pygame.K_LEFT] and not collide_right and not player.hit and player.buff:
+        player.move_left(10)
+    elif keys[pygame.K_LEFT] and not collide_right and player.hit and player.buff:
+        player.move_left(PLAYER_VEL)
+    if keys[pygame.K_RIGHT] and not collide_right and not player.hit and not player.buff:
+        player.move_right(PLAYER_VEL)    
+    elif keys[pygame.K_RIGHT] and not collide_right and player.hit and not player.buff:
+        player.move_right(2)
+    elif keys[pygame.K_RIGHT] and not collide_right and not player.hit and player.buff:
+        player.move_right(10)
+    elif keys[pygame.K_RIGHT] and not collide_right and player.hit and player.buff:
         player.move_right(PLAYER_VEL)
 
     vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
@@ -1024,10 +1078,18 @@ def handle_move(player, objects, boss):
     boss_collision = pushback(player, boss)
 
     for obj in to_check:
-        if obj and obj.name == "fire":
-            obj.disappear()
-            #player.make_hit()
- 
+        if obj and obj.name == "fire" and obj.animation_name == "on":
+            obj.off()  # Make fire off
+            player.make_hit()
+
+        if obj and obj.name == "fire_1" and obj.animation_name == "on":
+            obj.off()  # Make fire off
+            player.make_hit_good()
+
+        if obj and obj.name == "wall_left":
+            player.on_wall_left = True
+        if obj and obj.name == "wall_right":
+            player.on_wall_left = True
 
 def handle_move_1(player, objects, boss):
 
@@ -1037,9 +1099,21 @@ def handle_move_1(player, objects, boss):
     collide_left = collide(player, objects, -PLAYER_VEL_1 * 2)
     collide_right = collide(player, objects, PLAYER_VEL_1 * 2)
 
-    if keys[pygame.K_a] and not collide_left:
+    if keys[pygame.K_a] and not collide_left and not player.hit and not player.buff:
         player.move_left(PLAYER_VEL_1)
-    if keys[pygame.K_d] and not collide_right:
+    elif keys[pygame.K_a] and not collide_left and player.hit and not player.buff:
+        player.move_left(2)
+    elif keys[pygame.K_a] and not collide_left and not player.hit and player.buff:
+        player.move_right(10)
+    elif keys[pygame.K_a] and not collide_left and player.hit and player.buff:
+        player.move_right(PLAYER_VEL_1)
+    if keys[pygame.K_d] and not collide_right and not player.hit and not player.buff:
+        player.move_right(PLAYER_VEL_1)
+    elif keys[pygame.K_d] and not collide_right and player.hit and not player.buff:
+        player.move_right(2)
+    elif keys[pygame.K_d] and not collide_right and not player.hit and player.buff:
+        player.move_right(10)
+    elif keys[pygame.K_d] and not collide_right and player.hit and player.buff:
         player.move_right(PLAYER_VEL_1)
 
     vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
@@ -1047,9 +1121,13 @@ def handle_move_1(player, objects, boss):
     boss_collision = pushback(player, boss)
 
     for obj in to_check:
-        if obj and obj.name == "fire":
-            obj.disappear()  # Make fire disappear
-            #player.make_hit()
+        if obj and obj.name == "fire" and obj.animation_name == "on":
+            player.make_hit()
+            obj.off()
+        
+        if obj and obj.name == "fire_1" and obj.animation_name == "on":
+            obj.off()  # Make fire off
+            player.make_hit_good()
 
 def handle_move_2(player, objects, boss):
 
@@ -1059,19 +1137,24 @@ def handle_move_2(player, objects, boss):
     collide_left = collide(player, objects, -PLAYER_VEL_2 * 2)
     collide_right = collide(player, objects, PLAYER_VEL_2 * 2)
 
-    if keys[pygame.K_j] and not collide_left:
-        player.move_left(PLAYER_VEL_2)
-    if keys[pygame.K_l] and not collide_right:
-        player.move_right(PLAYER_VEL_2)
+    if keys[pygame.K_j] and not collide_left and not player.hit:
+        player.move_left(PLAYER_VEL_1)
+    elif keys[pygame.K_j] and not collide_left and player.hit:
+        player.move_left(2)
+    if keys[pygame.K_l] and not collide_right and not player.hit:
+        player.move_right(PLAYER_VEL_1)
+    elif keys[pygame.K_l] and not collide_right and player.hit:
+        player.move_right(2)
+    
 
     vertical_collide = handle_vertical_collision(player, objects, player.y_vel)
     to_check = [collide_left, collide_right, *vertical_collide]
     boss_collision = pushback(player, boss)
 
     for obj in to_check:
-        if obj and obj.name == "fire":
-            obj.disappear()  # Make fire disappear
-            #player.make_hit()
+        if obj and obj.name == "fire" and obj.animation_name == "on":
+            obj.off()
+            player.make_hit()
 
 def handle_fireball_collisions(fireballs, players):
     """Check if fireballs hit any player and apply effects."""
@@ -1118,15 +1201,16 @@ def main():
     background, bg_image = get_background("Blue.png")  
 
     block_size = 96
-
+    
     player = Player(100, 100, 50, 50)
+    #laser = Laser(player.rect.x, player.rect.y, 20, 5, player.direction)
     player_1 = Player_1(200, 100, 50, 50)
     if NO_OF_PLAYERS == 3:
         player_2 = Player_2(300, 100, 50, 50)
     boss = BOSS(600, HEIGHT - block_size, 100, 100)
     tag_marker = Tag(player, player_1)
     fire = Fire(196, HEIGHT - block_size - 64, 16, 32)
-    fire.on()
+    fire.on()    
     floor = [Block(i * block_size, HEIGHT - block_size, block_size, block_size) 
              for i in range(-WIDTH // block_size, WIDTH * 2  // block_size)]
     platform = [Block(192 + i * block_size, HEIGHT - (block_size * 4), block_size, block_size) 
@@ -1137,14 +1221,15 @@ def main():
              for i in range(5, 8)]
     platform_3 = [Block(192 + i * block_size, HEIGHT - (block_size * 8), block_size, block_size) 
              for i in range(10, 12)]
-    
+    fire_1 = Fire( platform_3[0].rect.x + 32, platform_3[0].rect.y - 64, 16, 32)
+    fire_1.on()
     wall_left = [Block(-(block_size * 5), HEIGHT - block_size * i, block_size, block_size) 
              for i in range(0, 100)]
     wall_right = [Block(WIDTH + (block_size * 2), HEIGHT - block_size * i, block_size, block_size) 
              for i in range(0, 100)]
     trampoline = Trampoline(1200 - block_size, HEIGHT - 152, 28, 28)
 
-    objects = [*floor, *platform, *platform_1, *platform_2, *platform_3, Block(0, HEIGHT - block_size * 2, block_size, block_size), fire, *wall_left, *wall_right, trampoline]
+    objects = [*floor, *platform, *platform_1, *platform_2, *platform_3, Block(0, HEIGHT - block_size * 2, block_size, block_size), fire, fire_1, *wall_left, *wall_right, trampoline]
     
     portal = Portal(96, HEIGHT - 128 - 32, 32, 32)
     portal_1 = Portal(96 * 2, HEIGHT - 480, 32, 32)
@@ -1210,7 +1295,8 @@ def main():
                     player_1.jump()
                 if event.key == pygame.K_i and player_2.jump_count < 2:
                     player_2.jump()
-        fire.loop(player, player_1)  # Update fire state
+        fire.loop(player, player_1)
+        fire_1.loop(player, player_1)  # Update fire state
         
 
         tag = TAG   
