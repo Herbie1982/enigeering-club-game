@@ -75,6 +75,7 @@ def load_sprite_sheets_boss(dir1, dir2, width, height, direction=False):
     images = [f for f in listdir(path) if isfile(join(path, f))]
 
     all_sprites = {}
+
     for image in images:
         sprite_sheet = pygame.image.load(join(path, image)).convert_alpha()
 
@@ -89,7 +90,7 @@ def load_sprite_sheets_boss(dir1, dir2, width, height, direction=False):
             temp_surface.blit(sprite_sheet, (0, 0), rect)
             enlarged_surface = pygame.transform.scale(temp_surface, (width * 2, height * 2))
             
-            sprites.append(enlarged_surface) # Append the enlarged surface
+            sprites.append(enlarged_surface)
 
         if direction:
             all_sprites[image.replace(".png", "") + "_right"] = sprites
@@ -1376,9 +1377,7 @@ def main():
             if ((player.rect.bottom - offset_y >= HEIGHT - scroll_area_height) and player.y_vel > 0) or (
             (player.rect.top - offset_y <= scroll_area_height) and player.y_vel < 0):
                 offset_y += player.y_vel
-        for player in players:
-            if player.rect.bottom > HEIGHT:
-                player.rect.bottom = HEIGHT + block_size
+
     
     pygame.quit()
     quit()
